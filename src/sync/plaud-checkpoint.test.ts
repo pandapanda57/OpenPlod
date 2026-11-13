@@ -19,3 +19,18 @@ test('checkpoint keeps prefix, truncates unconfirmed tail and appends each byte 
     expect(await readFile(path)).toEqual(Buffer.from([1, 2, 3, 4]));
   } finally { await rm(directory, { recursive: true }); }
 });
+
+test('checkpoint starts a fresh download and writes each chunk at its offset', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'openplod-checkpoint-'));
+  try {
+    const path = join(directory, 'audio.part');
+    const audio = Buffer.alloc(300_000, 7);
+    audio[0] = 1; audio[audio.length - 1] = 9;
+    const checkpoint = await openPlaudCheckpoint(path, 0);
+    try {
+      await checkpoint.save(audio.subarray(0, 120_000));
+      await checkpoint.save(audio);
+    } finally { await checkpoint.close(); }
+    expect(await readFile(path)).toEqual(audio);
+  } finally { await rm(directory, { recursive: true }); }
+});
